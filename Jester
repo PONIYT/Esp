@@ -1,8 +1,12 @@
--- ESPModule.lua
 
+-- ESP Module
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
+local LocalCharacter = LocalPlayer and LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local LocalHumanoidRootPart = LocalCharacter:WaitForChild("HumanoidRootPart")
 
 local ESP = {}
 ESP.__index = ESP
@@ -10,12 +14,6 @@ ESP.__index = ESP
 function ESP.new()
     local self = setmetatable({}, ESP)
     self.espCache = {}
-    self.settings = {
-        boxEnabled = true,
-        tracerEnabled = true,
-        espColor = Color3.fromRGB(255, 0, 0),
-        healthBarEnabled = true
-    }
     return self
 end
 
@@ -32,26 +30,26 @@ function ESP:createComponents()
         Box = self:createDrawing("Square", {
             Thickness = 1,
             Transparency = 1,
-            Color = self.settings.espColor,
+            Color = Color3.fromRGB(255, 255, 255),
             Filled = false
         }),
         Tracer = self:createDrawing("Line", {
             Thickness = 1,
             Transparency = 1,
-            Color = self.settings.espColor
+            Color = Color3.fromRGB(255, 255, 255)
         }),
         DistanceLabel = self:createDrawing("Text", {
             Size = 18,
             Center = true,
             Outline = true,
-            Color = self.settings.espColor,
+            Color = Color3.fromRGB(255, 255, 255),
             OutlineColor = Color3.fromRGB(0, 0, 0)
         }),
         NameLabel = self:createDrawing("Text", {
             Size = 18,
             Center = true,
             Outline = true,
-            Color = self.settings.espColor,
+            Color = Color3.fromRGB(255, 255, 255),
             OutlineColor = Color3.fromRGB(0, 0, 0)
         }),
         HealthBar = {
@@ -72,12 +70,38 @@ function ESP:createComponents()
             Size = 18,
             Center = true,
             Outline = true,
-            Color = self.settings.espColor,
+            Color = Color3.fromRGB(255, 255, 255),
             OutlineColor = Color3.fromRGB(0, 0, 0)
         }),
         SkeletonLines = {}
     }
 end
+
+local bodyConnections = {
+    R15 = {
+        {"Head", "UpperTorso"},
+        {"UpperTorso", "LowerTorso"},
+        {"LowerTorso", "LeftUpperLeg"},
+        {"LowerTorso", "RightUpperLeg"},
+        {"LeftUpperLeg", "LeftLowerLeg"},
+        {"LeftLowerLeg", "LeftFoot"},
+        {"RightUpperLeg", "RightLowerLeg"},
+        {"RightLowerLeg", "RightFoot"},
+        {"UpperTorso", "LeftUpperArm"},
+        {"UpperTorso", "RightUpperArm"},
+        {"LeftUpperArm", "LeftLowerArm"},
+        {"LeftLowerArm", "LeftHand"},
+        {"RightUpperArm", "RightLowerArm"},
+        {"RightLowerArm", "RightHand"}
+    },
+    R6 = {
+        {"Head", "Torso"},
+        {"Torso", "Left Arm"},
+        {"Torso", "Right Arm"},
+        {"Torso", "Left Leg"},
+        {"Torso", "Right Leg"}
+    }
+}
 
 function ESP:updateComponents(components, character, player)
     local hrp = character:FindFirstChild("HumanoidRootPart")
@@ -85,65 +109,46 @@ function ESP:updateComponents(components, character, player)
 
     if hrp and humanoid then
         local hrpPosition, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-        local mousePosition = Camera:WorldToViewportPoint(Camera.CFrame.p)
+        local mousePosition = Camera:WorldToViewportPoint(LocalPlayer:GetMouse().Hit.p)
 
         if onScreen then
             local screenWidth, screenHeight = Camera.ViewportSize.X, Camera.ViewportSize.Y
             local factor = 1 / (hrpPosition.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 100
             local width, height = math.floor(screenHeight / 25 * factor), math.floor(screenWidth / 27 * factor)
-            local distanceFromPlayer = math.floor((Camera.CFrame.p - hrp.Position).magnitude)
+            local distanceFromPlayer = math.floor((LocalHumanoidRootPart.Position - hrp.Position).magnitude)
             
             -- Box properties
-            if self.settings.boxEnabled then
-                components.Box.Size = Vector2.new(width, height)
-                components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
-                components.Box.Color = self.settings.espColor
-                components.Box.Visible = true
-            else
-                components.Box.Visible = false
-            end
+            components.Box.Size = Vector2.new(width, height)
+            components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
+            components.Box.Visible = Toggles.Box.Value
 
             -- Tracer properties
-            if self.settings.tracerEnabled then
-                components.Tracer.From = Vector2.new(mousePosition.X, mousePosition.Y)
-                components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
-                components.Tracer.Color = self.settings.espColor
-                components.Tracer.Visible = true
-            else
-                components.Tracer.Visible = false
-            end
+            components.Tracer.From = Vector2.new(mousePosition.X, mousePosition.Y)
+            components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
+            components.Tracer.Visible = Toggles.Tracer.Value
 
             -- Distance label properties
             components.DistanceLabel.Text = string.format("[%dM]", distanceFromPlayer)
             components.DistanceLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 15)
-            components.DistanceLabel.Color = self.settings.espColor
-            components.DistanceLabel.Visible = true
+            components.DistanceLabel.Visible = Toggles.Box.Value
 
             -- Name label properties
             components.NameLabel.Text = string.format("[%s]", player.Name)
             components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
-            components.NameLabel.Color = self.settings.espColor
-            components.NameLabel.Visible = true
+            components.NameLabel.Visible = Toggles.Box.Value
 
             -- Health bar properties
-            if self.settings.healthBarEnabled then
-                local healthBarHeight = height
-                local healthBarWidth = 5
-                local healthFraction = humanoid.Health / humanoid.MaxHealth
+            local healthBarHeight = height
+            local healthBarWidth = 5
+            local healthFraction = humanoid.Health / humanoid.MaxHealth
 
-                components.HealthBar.Outline.Size = Vector2.new(healthBarWidth, healthBarHeight)
-                components.HealthBar.Outline.Position = Vector2.new(components.Box.Position.X - healthBarWidth - 2, components.Box.Position.Y)
-                components.HealthBar.Outline.Color = Color3.fromRGB(0, 0, 0)
-                components.HealthBar.Outline.Visible = true
+            components.HealthBar.Outline.Size = Vector2.new(healthBarWidth, healthBarHeight)
+            components.HealthBar.Outline.Position = Vector2.new(components.Box.Position.X - healthBarWidth - 2, components.Box.Position.Y)
+            components.HealthBar.Outline.Visible = Toggles.Box.Value
 
-                components.HealthBar.Health.Size = Vector2.new(healthBarWidth - 2, healthBarHeight * healthFraction)
-                components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + healthBarHeight * (1 - healthFraction))
-                components.HealthBar.Health.Color = self.settings.espColor
-                components.HealthBar.Health.Visible = true
-            else
-                components.HealthBar.Outline.Visible = false
-                components.HealthBar.Health.Visible = false
-            end
+            components.HealthBar.Health.Size = Vector2.new(healthBarWidth - 2, healthBarHeight * healthFraction)
+            components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + healthBarHeight * (1 - healthFraction))
+            components.HealthBar.Health.Visible = Toggles.Box.Value
 
             -- Item label properties
             local backpack = player.Backpack
@@ -154,23 +159,21 @@ function ESP:updateComponents(components, character, player)
                 components.ItemLabel.Text = "[Holding: No tool]"
             end
             components.ItemLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 35)
-            components.ItemLabel.Color = self.settings.espColor
-            components.ItemLabel.Visible = true
+            components.ItemLabel.Visible = Toggles.Box.Value
 
             -- Skeleton properties
-            local connections = bodyConnections[character:FindFirstChild("Humanoid").RigType.Name] or {}
+            local connections = bodyConnections[humanoid.RigType.Name] or {}
             for _, connection in ipairs(connections) do
                 local partA = character:FindFirstChild(connection[1])
                 local partB = character:FindFirstChild(connection[2])
                 if partA and partB then
-                    local line = components.SkeletonLines[connection[1] .. "-" .. connection[2]] or self:createDrawing("Line", {Thickness = 1, Color = self.settings.espColor})
+                    local line = components.SkeletonLines[connection[1] .. "-" .. connection[2]] or self:createDrawing("Line", {Thickness = 1, Color = Color3.fromRGB(255, 255, 255)})
                     local posA, onScreenA = Camera:WorldToViewportPoint(partA.Position)
                     local posB, onScreenB = Camera:WorldToViewportPoint(partB.Position)
                     if onScreenA and onScreenB then
                         line.From = Vector2.new(posA.X, posA.Y)
                         line.To = Vector2.new(posB.X, posB.Y)
-                        line.Color = self.settings.espColor
-                        line.Visible = true
+                        line.Visible = Toggles.Box.Value
                         components.SkeletonLines[connection[1] .. "-" .. connection[2]] = line
                     else
                         line.Visible = false
@@ -213,25 +216,6 @@ function ESP:removeEsp(player)
             line:Remove()
         end
         self.espCache[player] = nil
-    end
-end
-
-function ESP:setSettings(newSettings)
-    for key, value in pairs(newSettings) do
-        if self.settings[key] ~= nil then
-            self.settings[key] = value
-        end
-    end
-end
-
-function ESP:setColor(color)
-    self.settings.espColor = color
-    for _, components in pairs(self.espCache) do
-        components.Box.Color = color
-        components.Tracer.Color = color
-        components.DistanceLabel.Color = color
-        components.NameLabel.Color = color
-        components.ItemLabel.Color = color
     end
 end
 
