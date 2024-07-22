@@ -111,11 +111,11 @@ function ESPModule:updateESP()
                         local healthFraction = humanoid.Health / humanoid.MaxHealth
 
                         components.HealthBar.Outline.Size = Vector2.new(healthBarWidth, healthBarHeight)
-                        components.HealthBar.Outline.Position = Vector2.new(components.Box.Position.X - healthBarWidth - 2, components.Box.Position.Y)
+                        components.HealthBar.Outline.Position = Vector2.new(hrpPosition.X - healthBarWidth - 2, hrpPosition.Y - height / 2)
                         components.HealthBar.Outline.Visible = true
 
                         components.HealthBar.Health.Size = Vector2.new(healthBarWidth - 2, healthBarHeight * healthFraction)
-                        components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + healthBarHeight * (1 - healthFraction))
+                        components.HealthBar.Health.Position = Vector2.new(hrpPosition.X - healthBarWidth + 1, hrpPosition.Y - height / 2 + height * (1 - healthFraction))
                         components.HealthBar.Health.Color = self.settings.espColor
                         components.HealthBar.Health.Visible = true
                     end
