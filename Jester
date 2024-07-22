@@ -109,9 +109,9 @@ function ESP:updateComponents(components, character, player)
 
     if hrp and humanoid then
         local hrpPosition, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-        local mousePosition = Camera:WorldToViewportPoint(LocalPlayer:GetMouse().Hit.p)
+        local characterPosition, onScreenChar = Camera:WorldToViewportPoint(LocalHumanoidRootPart.Position)
 
-        if onScreen then
+        if onScreen and onScreenChar then
             local screenWidth, screenHeight = Camera.ViewportSize.X, Camera.ViewportSize.Y
             local factor = 1 / (hrpPosition.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 100
             local width, height = math.floor(screenHeight / 25 * factor), math.floor(screenWidth / 27 * factor)
@@ -123,7 +123,7 @@ function ESP:updateComponents(components, character, player)
             components.Box.Visible = Toggles.Box.Value
 
             -- Tracer properties
-            components.Tracer.From = Vector2.new(mousePosition.X, mousePosition.Y)
+            components.Tracer.From = Vector2.new(characterPosition.X, characterPosition.Y)
             components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
             components.Tracer.Visible = Toggles.Tracer.Value
 
@@ -187,6 +187,7 @@ function ESP:updateComponents(components, character, player)
         self:hideComponents(components)
     end
 end
+
 
 function ESP:hideComponents(components)
     components.Box.Visible = false
