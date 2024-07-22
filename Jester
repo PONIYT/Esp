@@ -8,6 +8,7 @@ local defaultSettings = {
     boxEnabled = true,
     tracerEnabled = true,
     espColor = Color3.fromRGB(255, 0, 0),
+    healthBarEnabled = true
 }
 
 -- Create new ESP
@@ -37,6 +38,10 @@ function ESPModule:createESPComponents()
             self.espComponents[player] = {
                 Box = Drawing.new("Square"),
                 Tracer = Drawing.new("Line"),
+                HealthBar = {
+                    Outline = Drawing.new("Square"),
+                    Health = Drawing.new("Square")
+                }
             }
             local components = self.espComponents[player]
             components.Box.Thickness = 1
@@ -48,6 +53,16 @@ function ESPModule:createESPComponents()
             components.Tracer.Transparency = 1
             components.Tracer.Visible = false
             components.Tracer.Color = self.settings.espColor
+            
+            components.HealthBar.Outline.Thickness = 1
+            components.HealthBar.Outline.Transparency = 1
+            components.HealthBar.Outline.Visible = false
+            components.HealthBar.Outline.Color = Color3.fromRGB(0, 0, 0)
+
+            components.HealthBar.Health.Thickness = 1
+            components.HealthBar.Health.Transparency = 1
+            components.HealthBar.Health.Visible = false
+            components.HealthBar.Health.Color = self.settings.espColor
         end
     end
 end
@@ -86,13 +101,39 @@ function ESPModule:updateESP()
                 else
                     components.Tracer.Visible = false
                 end
+
+                -- Health Bar properties
+                if self.settings.healthBarEnabled then
+                    local humanoid = player.Character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        local healthBarHeight = height
+                        local healthBarWidth = 5
+                        local healthFraction = humanoid.Health / humanoid.MaxHealth
+
+                        components.HealthBar.Outline.Size = Vector2.new(healthBarWidth, healthBarHeight)
+                        components.HealthBar.Outline.Position = Vector2.new(components.Box.Position.X - healthBarWidth - 2, components.Box.Position.Y)
+                        components.HealthBar.Outline.Visible = true
+
+                        components.HealthBar.Health.Size = Vector2.new(healthBarWidth - 2, healthBarHeight * healthFraction)
+                        components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + healthBarHeight * (1 - healthFraction))
+                        components.HealthBar.Health.Color = self.settings.espColor
+                        components.HealthBar.Health.Visible = true
+                    end
+                else
+                    components.HealthBar.Outline.Visible = false
+                    components.HealthBar.Health.Visible = false
+                end
             else
                 components.Box.Visible = false
                 components.Tracer.Visible = false
+                components.HealthBar.Outline.Visible = false
+                components.HealthBar.Health.Visible = false
             end
         else
             components.Box.Visible = false
             components.Tracer.Visible = false
+            components.HealthBar.Outline.Visible = false
+            components.HealthBar.Health.Visible = false
         end
     end
 end
@@ -110,12 +151,10 @@ end
 function ESPModule:setColor(color)
     self.settings.espColor = color
     for _, components in pairs(self.espComponents) do
-        if components.Box then
-            components.Box.Color = color
-        end
-        if components.Tracer then
-            components.Tracer.Color = color
-        end
+        components.Box.Color = color
+        components.Tracer.Color = color
+        components.HealthBar.Outline.Color = color
+        components.HealthBar.Health.Color = color
     end
 end
 
