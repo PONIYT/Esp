@@ -1,3 +1,6 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
 -- ESP Module
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -14,8 +17,6 @@ ESP.__index = ESP
 function ESP.new()
     local self = setmetatable({}, ESP)
     self.espCache = {}
-    self.boxesEnabled = true
-    self.tracersEnabled = true
     return self
 end
 
@@ -33,14 +34,12 @@ function ESP:createComponents()
             Thickness = 1,
             Transparency = 1,
             Color = Color3.fromRGB(255, 255, 255),
-            Filled = false,
-            Visible = self.boxesEnabled
+            Filled = false
         }),
         Tracer = self:createDrawing("Line", {
             Thickness = 1,
             Transparency = 1,
-            Color = Color3.fromRGB(255, 255, 255),
-            Visible = self.tracersEnabled
+            Color = Color3.fromRGB(255, 255, 255)
         }),
         DistanceLabel = self:createDrawing("Text", {
             Size = 18,
@@ -120,34 +119,25 @@ function ESP:updateComponents(components, character, player)
             local factor = 1 / (hrpPosition.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 100
             local width, height = math.floor(screenHeight / 25 * factor), math.floor(screenWidth / 27 * factor)
             local distanceFromPlayer = math.floor((LocalHumanoidRootPart.Position - hrp.Position).magnitude)
-
-            -- Box properties
-            if self.boxesEnabled then
-                components.Box.Size = Vector2.new(width, height)
-                components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
-                components.Box.Visible = true
-            else
-                components.Box.Visible = false
-            end
+-- Box properties
+            components.Box.Size = Vector2.new(width, height)
+            components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
+            components.Box.Visible = getgenv().ESP_Toggle and true
 
             -- Tracer properties
-            if self.tracersEnabled then
-                components.Tracer.From = Vector2.new(mousePosition.X, mousePosition.Y)
-                components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
-                components.Tracer.Visible = true
-            else
-                components.Tracer.Visible = false
-            end
+            components.Tracer.From = Vector2.new(mousePosition.X, mousePosition.Y)
+            components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
+            components.Tracer.Visible = getgenv().ESP_Tracers and true
 
             -- Distance label properties
             components.DistanceLabel.Text = string.format("[%dM]", distanceFromPlayer)
             components.DistanceLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 15)
-            components.DistanceLabel.Visible = true
+            components.DistanceLabel.Visible = getgenv().ESP_Toggle and true
 
             -- Name label properties
             components.NameLabel.Text = string.format("[%s]", player.Name)
             components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
-            components.NameLabel.Visible = true
+            components.NameLabel.Visible = getgenv().ESP_Toggle and true
 
             -- Health bar properties
             local healthBarHeight = height
@@ -156,11 +146,11 @@ function ESP:updateComponents(components, character, player)
 
             components.HealthBar.Outline.Size = Vector2.new(healthBarWidth, healthBarHeight)
             components.HealthBar.Outline.Position = Vector2.new(components.Box.Position.X - healthBarWidth - 2, components.Box.Position.Y)
-            components.HealthBar.Outline.Visible = true
+            components.HealthBar.Outline.Visible = getgenv().ESP_Toggle and true
 
             components.HealthBar.Health.Size = Vector2.new(healthBarWidth - 2, healthBarHeight * healthFraction)
             components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + healthBarHeight * (1 - healthFraction))
-            components.HealthBar.Health.Visible = true
+            components.HealthBar.Health.Visible = getgenv().ESP_Toggle and true
 
             -- Item label properties
             local backpack = player.Backpack
@@ -171,7 +161,7 @@ function ESP:updateComponents(components, character, player)
                 components.ItemLabel.Text = "[Holding: No tool]"
             end
             components.ItemLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 35)
-            components.ItemLabel.Visible = true
+            components.ItemLabel.Visible = getgenv().ESP_Toggle and true
 
             -- Skeleton properties
             local connections = bodyConnections[humanoid.RigType.Name] or {}
@@ -185,7 +175,7 @@ function ESP:updateComponents(components, character, player)
                     if onScreenA and onScreenB then
                         line.From = Vector2.new(posA.X, posA.Y)
                         line.To = Vector2.new(posB.X, posB.Y)
-                        line.Visible = true
+                        line.Visible = getgenv().ESP_Toggle and true
                         components.SkeletonLines[connection[1] .. "-" .. connection[2]] = line
                     else
                         line.Visible = false
@@ -226,46 +216,52 @@ function ESP:removeEsp(player)
         components.ItemLabel:Remove()
         for _, line in pairs(components.SkeletonLines) do
             line:Remove()
-       
         end
         self.espCache[player] = nil
     end
 end
 
--- Function to enable or disable boxes
-function ESP:setBoxesEnabled(enabled)
-    self.boxesEnabled = enabled
+function ESP:applyEsp(player)
+    if not self.espCache[player] then
+        local components = self:createComponents()
+        self.espCache[player] = components
+    end
+
+    local character = player.Character
+    if character then
+        RunService.RenderStepped:Connect(function()
+            self:updateComponents(self.espCache[player], character, player)
+        end)
+    end
 end
 
--- Function to enable or disable tracers
-function ESP:setTracersEnabled(enabled)
-    self.tracersEnabled = enabled
-end
+function ESP:start()
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function(character)
+            self:applyEsp(player)
+        end)
+    end)
 
--- Example usage of the module
-local espInstance = ESP.new()
-
-RunService.RenderStepped:Connect(function()
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local character = player.Character
-            if character then
-                if not espInstance.espCache[player] then
-                    espInstance.espCache[player] = espInstance:createComponents()
-                end
-                espInstance:updateComponents(espInstance.espCache[player], character, player)
-            else
-                if espInstance.espCache[player] then
-                    espInstance:hideComponents(espInstance.espCache[player])
-                end
-            end
+        if player.Character then
+            self:applyEsp(player)
         end
     end
-end)
+end
 
-Players.PlayerRemoving:Connect(function(player)
-    espInstance:removeEsp(player)
-end)
+return ESP.new()
 
--- Return the ESP module
-return espInstance
+-- UI Integration
+local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/username/repo/main/library.lua"))()
+local config = library:CreateConfig("ESP Configuration")
+
+local espOptions = {
+    {"Enable Boxes", "ESP_Toggle", true},
+    {"Enable Tracers", "ESP_Tracers", false}
+}
+
+for _, option in ipairs(espOptions) do
+    config:Toggle(option[1], option[2], option[3])
+end
+
+config:Save("ESPConfig")
