@@ -1,6 +1,3 @@
---[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
-]]
 -- ESP Module
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -17,6 +14,8 @@ ESP.__index = ESP
 function ESP.new()
     local self = setmetatable({}, ESP)
     self.espCache = {}
+    self.boxesEnabled = true
+    self.tracersEnabled = true
     return self
 end
 
@@ -34,12 +33,14 @@ function ESP:createComponents()
             Thickness = 1,
             Transparency = 1,
             Color = Color3.fromRGB(255, 255, 255),
-            Filled = false
+            Filled = false,
+            Visible = self.boxesEnabled
         }),
         Tracer = self:createDrawing("Line", {
             Thickness = 1,
             Transparency = 1,
-            Color = Color3.fromRGB(255, 255, 255)
+            Color = Color3.fromRGB(255, 255, 255),
+            Visible = self.tracersEnabled
         }),
         DistanceLabel = self:createDrawing("Text", {
             Size = 18,
@@ -112,7 +113,7 @@ function ESP:updateComponents(components, character, player)
 
     if hrp and humanoid then
         local hrpPosition, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-        local localPlayerPosition = Camera:WorldToViewportPoint(LocalHumanoidRootPart.Position)
+        local mousePosition = Camera:WorldToViewportPoint(LocalPlayer:GetMouse().Hit.p)
 
         if onScreen then
             local screenWidth, screenHeight = Camera.ViewportSize.X, Camera.ViewportSize.Y
@@ -121,14 +122,22 @@ function ESP:updateComponents(components, character, player)
             local distanceFromPlayer = math.floor((LocalHumanoidRootPart.Position - hrp.Position).magnitude)
 
             -- Box properties
-            components.Box.Size = Vector2.new(width, height)
-            components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
-            components.Box.Visible = true
+            if self.boxesEnabled then
+                components.Box.Size = Vector2.new(width, height)
+                components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
+                components.Box.Visible = true
+            else
+                components.Box.Visible = false
+            end
 
-            -- Tracer properties (changed to point from player to character)
-            components.Tracer.From = Vector2.new(localPlayerPosition.X, localPlayerPosition.Y)
-            components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
-            components.Tracer.Visible = true
+            -- Tracer properties
+            if self.tracersEnabled then
+                components.Tracer.From = Vector2.new(mousePosition.X, mousePosition.Y)
+                components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
+                components.Tracer.Visible = true
+            else
+                components.Tracer.Visible = false
+            end
 
             -- Distance label properties
             components.DistanceLabel.Text = string.format("[%dM]", distanceFromPlayer)
@@ -217,11 +226,23 @@ function ESP:removeEsp(player)
         components.ItemLabel:Remove()
         for _, line in pairs(components.SkeletonLines) do
             line:Remove()
+       
         end
         self.espCache[player] = nil
     end
 end
 
+-- Function to enable or disable boxes
+function ESP:setBoxesEnabled(enabled)
+    self.boxesEnabled = enabled
+end
+
+-- Function to enable or disable tracers
+function ESP:setTracersEnabled(enabled)
+    self.tracersEnabled = enabled
+end
+
+-- Example usage of the module
 local espInstance = ESP.new()
 
 RunService.RenderStepped:Connect(function()
@@ -245,3 +266,6 @@ end)
 Players.PlayerRemoving:Connect(function(player)
     espInstance:removeEsp(player)
 end)
+
+-- Return the ESP module
+return espInstance
